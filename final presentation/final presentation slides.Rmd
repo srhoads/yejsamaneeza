@@ -1,0 +1,877 @@
+---
+title: "Inside the Ivy: A Glimpse into the Undergraduate Life at Columbia:"
+subtitle: "A Visualization of Diversity Details"
+author: "Samantha Rhoads (BA/MA CC undergrad & QMSS), Maneeza Dawood (former GS undergrad, current PhD student), Yeji Park (CC undergrad and incoming lab coordinator)"
+date: "2018/04/12"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = F, message = F, echo = F)
+```
+
+background-image: url(http://collections.mcny.org/Doc/MNY/Media/TR3/8/d/e/0/MNY287095.jpg)
+
+???
+
+
+
+
+---
+class: center, middle
+
+# We've spent our whole college careers at CU, so we want to shed some light on **what it's like to be an undergraduate in Morningside Heights.**
+
+### Don't recognize us from the usual QMSS festivities? That's because we're invaders! Sam's a CC/QMSS BA/MA student, Maneeza's a Psych PhD student who got her BA from Columbia GS, and Yeji's a fab CC transfer from Wesleyan.
+
+---
+class: inverse, center, middle
+
+# Let's head into the roller-coaster-like road of a CU undergrad. Today, we're interested in...
+
+### a. Where do our undergrads come from?
+### b. What does ethnoracial diversity mean to young-adult students and how does diversity manifest in social networks?
+### c. What developmental socio-ecological factors might influence long-term attitudes toward cultural diversity?
+
+---
+class: inverse, center, middle
+
+### d. What groups occupy more central positions within a closed network?
+
+---
+class: inverse, center, middle
+
+### e. How can students become more aware of marginalization of their peers?
+### f. Can exposure to outgroup members help foster tolerance and acceptance?
+### g. Can an introductory psychology course act as an intervention, increasing how much they discuss diversity?
+
+```{r, warning = F, message = F, echo = F}
+library(tidyverse)
+library(tidytext)
+library(stringr)
+library(SnowballC)
+library(wordcloud)
+library(tm)
+library(dplyr)
+library(tidyr)
+library(igraph)
+library(ggplot2)
+library(ggnetwork)
+library(threejs)
+```
+
+---
+class: inverse
+
+###### All Columbia students had to start their academic pursuits somewhere. Perhaps they matriculated after nearly two decades in the public school system...
+
+###### Racial diversity is concentrated in small pockets here and there, pre-dominantly on the coasts and in major cities. Our pop-up info gives us some additional background information about our plotted schools.
+
+```{r, echo = F, warning = F, message = F, size="tiny"}
+knitr::include_graphics("https://github.com/srhoads/projects/raw/master/data%20visualization%20-%20a%20project/Screen%20Shot%202018-04-30%20at%2012.29.21%20PM.png")
+```
+<small>full interactive visualizations are available on: [https://rpubs.com/skrhoads](https://rpubs.com/skrhoads)</small>
+
+---
+
+A close-up on the Big Apple!
+
+```{r, echo = F, warning = F, message = F}
+
+knitr::include_graphics("https://github.com/srhoads/projects/raw/master/data%20visualization%20-%20a%20project/Screen%20Shot%202018-04-30%20at%2012.44.25%20PM.png")
+```
+<small>full interactive visualizations are available on: [https://rpubs.com/skrhoads)</small>
+
+---
+class: inverse
+
+###### Or, perhaps they stuck it out through the private school life.
+
+###### NCES's Private School Survey (PSS) released demographic reports for 2011-2012 (nearly the same period as our public school reports). It's evident there exist many fewer private than public schools in the United States, though the racial diversity of public schools is no match for the more elite and usually costly private schools.
+
+```{r, echo = F, warning = F, message = F}
+knitr::include_graphics("https://github.com/srhoads/projects/raw/master/data%20visualization%20-%20a%20project/Screen%20Shot%202018-04-30%20at%2012.33.42%20PM.png")
+```
+<small>full interactive visualizations are available on: [https://rpubs.com/skrhoads)</small>
+
+---
+
+A close-up on the Big Apple!
+
+```{r, echo = F, warning = F, message = F}
+knitr::include_graphics("https://github.com/srhoads/projects/raw/master/data%20visualization%20-%20a%20project/Screen%20Shot%202018-04-30%20at%2012.37.04%20PM.png")
+```
+<small>full interactive visualizations are available on: [https://rpubs.com/skrhoads)</small>
+
+
+
+
+
+---
+class: center, middle
+
+
+```{r, echo = FALSE, warning = F, message = F}
+d <- cul.04 <- read.csv("https://raw.githubusercontent.com/srhoads/thesis/culties/.gitignore/cul/processed/data/cul2016.04102018.csv?token=AZbwLtlQ1fOAwlwqvlEx1I5BH8PwT8yxks5a9wbawA%3D%3D")
+# load("/Users/SRhoads/Desktop/private.schools.01.19.11.13.rda")
+```
+
+```{r, warning = F, message = F, echo = F}
+cul.04$minority.pop.growth <- cul.04$tract.perc.minority.increase 
+cul.04$tract.income.2010.10thou <- cul.04$tract.income.a.2010 / 10000
+cul.04$county.income.2010.10thou <- cul.04$county.income.a.2010 / 10000
+cul.04$minority.status <- factor((1 - cul.04$white), levels = 0:1, labels = c("Non-minority", "Minority"))
+cul.04[grep("Anna A", d$name1st), "group"] <- "group15"
+
+cul.04_nona <- cul.04 %>% filter(!is.na(hstype), hstype != "GED")
+```
+
+
+##### So, where did Columbia students attend secondary school? Private schools? Public schools? The coasts?
+
+###### It seems as though Columbia matriculators come primarily from the diverse hubs of the country. But what do these hometown socio-ecological factors mean for perceptions of racial variation in day-to-day life? Answers to come!
+
+```{r, echo = F, warning = F, message = F}
+library(ggplot2)
+library(tidyverse)
+library(wesanderson)
+library(plotly)
+library(ggmap)
+library(geosphere)
+library(RColorBrewer)
+library(leaflet)
+palette.2 = colorFactor("viridis", domain = cul.04_nona$hstype)
+race.color = palette.2(cul.04_nona$hstype)
+
+
+fire.icon <- makeIcon(iconUrl = "http://cdn.onlinewebfonts.com/svg/img_166278.png", iconWidth = 11, iconHeight = 11)
+```
+
+```{r, echo = F, warning = F, message = F, out.width = "80%"}
+leaflet(cul.04_nona) %>% addProviderTiles(providers$CartoDB.Positron) %>%
+    addLegend(pal = palette.2, values = ~ cul.04_nona$hstype, title = "CU Students Hometown Schools") %>%
+  addMarkers(lng = cul.04_nona$nces.longitude, lat= cul.04_nona$nces.latitude, 
+             popup = ~ paste(as.character(hstype), "School in", as.character(county.state)), # popup and label as the incident ID to identify outlier non-NYC miscoded units
+             label = ~ as.character(paste("Census Tract Diversity:", tract.diversity)), 
+             icon = fire.icon) %>%
+   addCircleMarkers(lng=~nces.longitude, lat=~nces.latitude, color = race.color, radius = 10, fill = T, weight = 8)
+```
+
+
+---
+class: center, middle
+
+
+
+
+
+##### Today, we want to take a look at the past, present, and predominant perceptions of CU students' diversity attitudes at social networks. 
+
+```{r, warning = F, message = F, echo = F, fig.width = 20, fig.height = 7, size="tiny"}
+library(tidyverse)
+library(ggmap)
+library(DT)
+library(knitr)
+cul.04$hs.locale <- gsub("Large", "Large ", cul.04$hslocale)
+cul.04$hs.locale <- gsub("Small", "Small ", cul.04$hs.locale)
+cul.04$hs.locale <- gsub("Fringe", "Fringe ", cul.04$hs.locale)
+
+datatable(cul.04 %>% select(`High School Name` = nces.name, `County, State` = county.state, `High School Locale` = hs.locale, `High School Diversity` = diversity.hs, `High School Type` = hstype, `CU Students' Race` = race))
+```
+
+---
+
+
+##### Maneeza will now take it away!
+
+###### Little old Columbia sits right above Manhattan's Upper West Side and it's home to some of the most studious students in the nation. After all, it's rated by some prolific media sources as the US's most academically stressful university.
+
+
+```{r, echo = FALSE, warning = F, message = F}
+# map_CU_gm <- get_map("Columbia University", zoom=16, 
+#                    source="google",maptype="hybrid")
+
+# save(map_CU_gm, file = "map_CU_gm.rda")
+# load("map_CU_gm.rda")
+
+map_CU_gm_url <- url("https://github.com/srhoads/projects/blob/master/data%20visualization%20-%20a%20project/map_CU_gm.rda?raw=true")
+map_CU_gm <- get(load(map_CU_gm_url))
+ggmap(map_CU_gm) + xlab("Longitude") + ylab("Latitude")
+
+```
+
+
+---
+#### The cultural psychology course
+
+#### Participants in this study included 126 Columbia undergraduates
+#### Students in this class learned about research on culture, diversity and intergroup relations
+#### Students were also assigned a group project for the course, which included an ethnographic assessment of a NYC based company or organization.
+
+---
+#### surveys were collected at the start and end of the semester, examining:
+#### colorblind and multicultural attitudes at the start and end of the semester
+#### networks at the start and end of the semester
+
+---
+class: center, middle
+#### What did students discuss in their group project proposals for the class?
+
+```{r, warning = F, message = F, echo = F}
+sampleproj <- read.csv("https://raw.githubusercontent.com/srhoads/projects/master/data%20visualization%20-%20a%20project/culpsy.csv")
+sna1 <- read.csv("https://raw.githubusercontent.com/srhoads/thesis/culties/.gitignore/cul/original/processed/SNA-T1.csv?token=AZbwLj2NLtWkYMaf3e4fMRYOa-KmVs6Wks5a-bbwwA%3D%3D") 
+sna2 <- read.csv("https://raw.githubusercontent.com/srhoads/thesis/culties/.gitignore/cul/original/processed/SNA-T2.csv?token=AZbwLtzxsf95PtnAyFxXS9g8L0R5D80Iks5a-bcTwA%3D%3D") 
+att <- read.csv("https://raw.githubusercontent.com/srhoads/projects/master/data%20visualization%20-%20a%20project/Attributes-Sub.csv")
+
+sampleproj$text <- iconv(sampleproj$text, "latin1", "UTF-8", sub='')
+
+#Creating corpus with sample
+sampleproj$doc_id <- sampleproj$id
+sampleproj$text <- sampleproj$text
+sampleproj_source <- DataframeSource(sampleproj)
+sampleproj_corpus <- VCorpus(sampleproj_source)
+
+
+
+sampleproj_corpus <- tm_map(sampleproj_corpus, stripWhitespace) # removing whitespace
+sampleproj_corpus <- tm_map(sampleproj_corpus, removePunctuation) # removing punctuation
+sampleproj_corpus <- tm_map(sampleproj_corpus, content_transformer(tolower)) # making lowercase for consistency
+sampleproj_corpus <- tm_map(sampleproj_corpus, removeNumbers) # removing numbers
+sampleproj_corpus <- tm_map(sampleproj_corpus, stemDocument) # truncating words for broader meanings
+
+
+
+#Clearning functions
+removeUppCase <- function(x){gsub("\\b[A-Z]+\\b", "", x)} #Removing Upper Case words as requested
+removeWebsites <- function(x){gsub("www\\S+\\s*", "", x)} #Removing websites 
+clean_corpus <- function(corpus){
+  corpus <- tm_map(corpus, content_transformer(removeWebsites))
+  corpus <- tm_map(corpus, content_transformer(removeNumbers))
+  corpus <- tm_map(corpus, content_transformer(removePunctuation))
+  corpus <- tm_map(corpus, content_transformer(removeUppCase))
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, content_transformer(removeWords), c(stopwords("en"))) 
+  corpus <- tm_map(corpus, content_transformer(stripWhitespace))
+  return(corpus)}
+
+
+#Cleaned and stemmed corpus
+sampleproj_clean <- clean_corpus(sampleproj_corpus)
+sampleproj_stemmed <- tm_map(sampleproj_clean, stemDocument)
+
+#Completing stem functions
+stemCompletion2 <- function(x, dictionary) {
+  x <- unlist(strsplit(as.character(x), " "))
+  x <- x[x != ""]
+  x <- stemCompletion(x, dictionary=dictionary)
+  x <- paste(x, sep="", collapse=" ")
+  PlainTextDocument(stripWhitespace(x))}
+
+#Completing all stemmed words in corpus
+sampleproj_compl <- lapply(sampleproj_stemmed, stemCompletion2, dictionary=sampleproj_clean)
+sampleproj_all <- as.VCorpus(sampleproj_compl)
+for (i in 1:dim(sampleproj)[1]){
+  sampleproj_all[[i]]$meta$id <- sampleproj[i,"id"]}
+
+#Creating document-term matrix and converting into tidytext format
+sampleproj_dtm <- DocumentTermMatrix(sampleproj_all)
+sampleproj_td <- tidy(sampleproj_dtm)
+sampleproj_tdwmeta <- merge(sampleproj_td, sampleproj, by.x="document", by.y="id")
+
+set.seed(1234)
+
+wordcloud(sampleproj_all, scale=c(5,0.5), max.words=50, random.order=FALSE, rot.per=0.35, use.r.layout=FALSE, colors=brewer.pal(8, "Dark2"))
+```
+
+---
+#### Sentiment analysis by proposal
+```{r, warning = F, message = F, echo = F}
+paper_words <- read.csv("https://raw.githubusercontent.com/srhoads/projects/master/data%20visualization%20-%20a%20project/proposalcsvfile.csv")
+paper_words$file <- as.character(paper_words$file)
+paper_words$line_number <- as.integer(paper_words$line_number)
+paper_words$word <- as.character(paper_words$word)
+
+## remove stop-words
+
+data("stop_words")
+paper_words <- paper_words %>%
+  anti_join(stop_words)
+
+## perform sentiment analysis on speeches ##
+
+paper_sentiment <- inner_join(paper_words, get_sentiments("bing")) %>%
+  count(file, index = round(line_number / max(line_number) * 100 / 5) * 5, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(net_sentiment = positive - negative)
+
+## display sentiment across time ##
+paper_sentiment %>% ggplot(aes(x = index, y = net_sentiment, fill = file)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  facet_wrap(~ file) + 
+  scale_x_continuous("Location in paper (percent)") + 
+  scale_y_continuous("Bing Net Sentiment")
+
+```
+---
+```{r prepare data}
+att %>% mutate(Gender = as.character(ifelse(att$Gender=="M", "Male", ifelse(att$Gender=="F", "Female", NA)))) %>%
+  mutate(RaceSimp = as.character(.$RaceSimp)) %>% mutate(PPID = as.character(.$PPID)) %>% 
+  mutate(Minority = as.character(.$Minority)) %>%
+  mutate(Identity = case_when(.$Gender=="Male" & .$Minority=="White" ~ "White Men",
+                              .$Gender=="Male" & .$Minority=="Minority" ~ "Minority Men",
+                              .$Gender=="Female" & .$Minority=="White" ~ "White Women",
+                              .$Gender=="Female" & .$Minority=="Minority" ~ "Minority Women")) -> att
+```
+---
+class: center, middle
+## Do people actually interact with each other and form new ties throughout the course of the semester?
+
+---
+## Friend Network
+We first created students' friend network. Basically, participants were asked to give the names of people who they consider to be their friends, and rate how close they feel to each person that they listed.
+---
+### Start of the semester
+```{r friend network time 1, fig.height=6, fig.width=8}
+friend1 <- sna1[,c(1:21)] 
+names(friend1) <- c("PPID","Fr1","Fr2","Fr3","Fr4","Fr5","Fr6","Fr7","Fr8","Fr9","Fr10",
+                    "Fr1C","Fr2C","Fr3C","Fr4C","Fr5C","Fr6C","Fr7C","Fr8C","Fr9C","Fr10C")
+fxlong1 <- friend1 %>% gather(variable, value, -c(PPID))
+subset(fxlong1[1:1550,]) %>% mutate(weight = fxlong1[1551:3100,3]) %>% rename(to = value, from = PPID) %>% select(-variable) %>%
+  mutate(weight = ifelse(is.na(.$to), NA, .$weight), to = ifelse(is.na(.$to), .$from, .$to)) %>% unique(.) -> flong1
+mylevels <- unique(c(as.character(flong1$from), as.character(flong1$to)))
+flong1$from <- factor(flong1$from, levels = mylevels)
+flong1$to <- factor(flong1$to, levels = mylevels) # to turn into a matrix
+flong1$weight <- ifelse(flong1$from==flong1$to, 0, flong1$weight)
+flong1 <- na.omit(flong1)
+
+fmat1 <- reshape2::acast(flong1, from~to, value.var="weight", fill=0, drop=F)
+fg1 <- igraph::graph.adjacency(fmat1, mode=c("directed"), weighted=T, diag=F) # create network
+
+V(fg1)$gender <- att$Gender[match(V(fg1)$name, att$PPID)]
+V(fg1)$minority <- att$Minority[match(V(fg1)$name, att$PPID)]
+V(fg1)$race <- att$RaceSimp[match(V(fg1)$name, att$PPID)]
+V(fg1)$identity <- att$Identity[match(V(fg1)$name, att$PPID)]
+V(fg1)$size <- igraph::degree(fg1) *3
+
+fdat1 <- ggnetwork(fg1, layout="fruchtermanreingold", directed=TRUE) # turn graph object into network
+
+ggplot() + 
+  geom_edges(data=fdat1, aes(x=x, y=y, xend=xend, yend=yend), color="grey60", curvature=0.1, size=.15, 
+             arrow = arrow(length = unit(6, "pt"))) +
+  geom_nodes(data=fdat1, aes(x=x, y=y, size=size, color=gender, shape=minority, alpha=.1)) + 
+  geom_nodetext(dat=fdat1, aes(x=x, y=y, size=3, label=vertex.names), color="grey30") +
+  theme_blank()
+
+fcent1 <- cbind(igraph::degree(fg1), igraph::degree(fg1, mode="in"), igraph::degree(fg1, mode="out"),
+                igraph::betweenness(fg1, directed=T), igraph::closeness(fg1, mode="all"),
+                igraph::evcent(fg1)$vector) %>% as.data.frame(.) %>% cbind(PPID=as.numeric(as.character(rownames(.))), .)
+names(fcent1) <- c("PPID","deg1","indeg1","outdeg1","btwn1","close1","eigen1")
+```
+
+---
+### End of the semester
+```{r friend network time 2, fig.height=6, fig.width=8}
+friend2 <- sna2[,c(1:21)] 
+names(friend2) <- c("PPID","Fr1","Fr2","Fr3","Fr4","Fr5","Fr6","Fr7","Fr8","Fr9","Fr10",
+                    "Fr1C","Fr2C","Fr3C","Fr4C","Fr5C","Fr6C","Fr7C","Fr8C","Fr9C","Fr10C")
+fxlong2 <- friend2 %>% gather(variable, value, -c(PPID))
+subset(fxlong2[1:1430,]) %>% mutate(weight = fxlong2[1431:2860,3]) %>% rename(to = value, from = PPID) %>% select(-variable) %>%
+  mutate(weight = ifelse(is.na(.$to), NA, .$weight)) %>% mutate(to = ifelse(is.na(.$to), .$from, .$to)) %>% unique(.) -> flong2
+mylevels <- unique(c(as.character(flong2$from), as.character(flong2$to)))
+flong2$from <- factor(flong2$from, levels = mylevels)
+flong2$to <- factor(flong2$to, levels = mylevels) # to turn into a matrix
+flong2$weight <- ifelse(flong2$from==flong2$to, 0, flong2$weight)
+flong2 <- na.omit(flong2)
+
+fmat2 <- reshape2::acast(flong2, from~to, value.var="weight", fill=0, drop=F)
+fg2 <- igraph::graph.adjacency(fmat2, mode=c("directed"), weighted=T, diag=F) # create network
+
+V(fg2)$gender <- att$Gender[match(V(fg2)$name, att$PPID)]
+V(fg2)$minority <- att$Minority[match(V(fg2)$name, att$PPID)]
+V(fg2)$race <- att$RaceSimp[match(V(fg2)$name, att$PPID)]
+V(fg2)$identity <- att$Identity[match(V(fg2)$name, att$PPID)]
+V(fg2)$size <- igraph::degree(fg2) *3
+
+fdat2 <- ggnetwork(fg2, layout="fruchtermanreingold", directed=TRUE) # turn graph object into network
+
+ggplot() + 
+  geom_edges(data=fdat2, aes(x=x, y=y, xend=xend, yend=yend), color="grey60", curvature=0.1, size=.15, 
+             arrow = arrow(length = unit(6, "pt"))) +
+  geom_nodes(data=fdat2, aes(x=x, y=y, size=size, color=gender, shape=minority, alpha=.1)) + 
+  geom_nodetext(dat=fdat2, aes(x=x, y=y, size=3, label=vertex.names), color="grey30") +
+  theme_blank()
+
+fcent2 <- cbind(igraph::degree(fg2), igraph::degree(fg2, mode="in"), igraph::degree(fg2, mode="out"),
+                igraph::betweenness(fg2, directed=T), igraph::closeness(fg2, mode="all"),
+                igraph::evcent(fg2)$vector) %>% as.data.frame(.) %>% cbind(PPID=as.numeric(as.character(rownames(.))), .)
+names(fcent2) <- c("PPID","deg2","indeg2","outdeg2","btwn2","close2","eigen2")
+
+fcent <- inner_join(fcent1, fcent2, by="PPID") %>% # leaving data for only people who completed both T1 and T2 surveys
+  mutate(gender = att$Gender[match(.$PPID, att$PPID)], race = att$RaceSimp[match(.$PPID, att$PPID)], 
+         minority = att$Minority[match(.$PPID, att$PPID)], identity = att$Identity[match(.$PPID, att$PPID)])
+```
+
+---
+## Study Network
+While friendship is one major type of social relationships, it may ironically not reflect the actual ties; after all, everyone has different standards about who counts as friends. A more concrete network would be the study network (in which participants are asked to give the names of people who they study or do work for class together), because study partnership requires people to actually spend time together. 
+
+---
+### Start of the semester
+```{r study network time 1, fig.height=6, fig.width=8}
+study1 <- sna1[,c(1,32:51)] 
+names(study1) <- c("PPID","St1","St2","St3","St4","St5","St6","St7","St8","St9","St10",
+                    "St1C","St2C","St3C","St4C","St5C","St6C","St7C","St8C","St9C","St10C")
+sxlong1 <- study1 %>% gather(variable, value, -c(PPID))
+subset(sxlong1[1:1550,]) %>% mutate(weight = sxlong1[1551:3100,3]) %>% rename(to = value, from = PPID) %>% select(-variable) %>%
+  mutate(weight = ifelse(is.na(.$to), NA, .$weight), to = ifelse(is.na(.$to), .$from, .$to)) %>% unique(.) -> slong1
+mylevels <- unique(c(as.character(slong1$from), as.character(slong1$to)))
+slong1$from <- factor(slong1$from, levels = mylevels)
+slong1$to <- factor(slong1$to, levels = mylevels) # to turn into a matrix
+slong1$weight <- ifelse(slong1$from==slong1$to, 0, slong1$weight)
+slong1 <- na.omit(slong1)
+
+smat1 <- reshape2::acast(slong1, from~to, value.var="weight", fill=0, drop=F)
+sg1 <- igraph::graph.adjacency(smat1, mode=c("directed"), weighted=T, diag=F) # create network
+
+V(sg1)$gender <- att$Gender[match(V(sg1)$name, att$PPID)]
+V(sg1)$minority <- att$Minority[match(V(sg1)$name, att$PPID)]
+V(sg1)$race <- att$RaceSimp[match(V(sg1)$name, att$PPID)]
+V(sg1)$identity <- att$Identity[match(V(sg1)$name, att$PPID)]
+V(sg1)$size <- igraph::degree(sg1) *3
+
+sdat1 <- ggnetwork(sg1, layout="fruchtermanreingold", directed=TRUE) # turn graph object into network
+
+ggplot() + 
+  geom_edges(data=sdat1, aes(x=x, y=y, xend=xend, yend=yend), color="grey60", curvature=0.1, size=.15, 
+             arrow = arrow(length = unit(6, "pt"))) +
+  geom_nodes(data=sdat1, aes(x=x, y=y, size=size, color=gender, shape=minority, alpha=.1)) + 
+  geom_nodetext(dat=sdat1, aes(x=x, y=y, size=3, label=vertex.names), color="grey30") +
+  theme_blank()
+
+scent1 <- cbind(igraph::degree(sg1), igraph::degree(sg1, mode="in"), igraph::degree(sg1, mode="out"),
+                igraph::betweenness(sg1, directed=T), igraph::closeness(sg1, mode="all"),
+                igraph::evcent(sg1)$vector) %>% as.data.frame(.) %>% cbind(PPID=as.numeric(as.character(rownames(.))), .)
+names(scent1) <- c("PPID","deg1","indeg1","outdeg1","btwn1","close1","eigen1")
+```
+
+---
+### End of the semester
+```{r study network time 2, fig.height=6, fig.width=8}
+study2 <- sna2[,c(1,32:51)] 
+names(study2) <- c("PPID","St1","St2","St3","St4","St5","St6","St7","St8","St9","St10",
+                    "St1C","St2C","St3C","St4C","St5C","St6C","St7C","St8C","St9C","St10C")
+study2$St1 <- as.integer(as.character(study2$St1)) # removing people who wrote "none" or "N/A" instead of leaving them blank
+sxlong2 <- study2 %>% gather(variable, value, -c(PPID))
+
+subset(sxlong2[1:1430,]) %>% mutate(weight = sxlong2[1431:2860,3]) %>% rename(to = value, from = PPID) %>% select(-variable) %>%
+  mutate(weight = ifelse(is.na(.$to), NA, .$weight)) %>% mutate(to = ifelse(is.na(.$to), .$from, .$to)) %>% unique(.) -> slong2
+mylevels <- unique(c(as.character(slong2$from), as.character(slong2$to)))
+slong2$from <- factor(slong2$from, levels = mylevels)
+slong2$to <- factor(slong2$to, levels = mylevels) # to turn into a matrix
+slong2$weight <- ifelse(slong2$from==slong2$to, 0, slong2$weight)
+slong2 <- na.omit(slong2)
+
+smat2 <- reshape2::acast(slong2, from~to, value.var="weight", fill=0, drop=F)
+sg2 <- igraph::graph.adjacency(smat2, mode=c("directed"), weighted=T, diag=F) # create network
+
+V(sg2)$gender <- att$Gender[match(V(sg2)$name, att$PPID)]
+V(sg2)$minority <- att$Minority[match(V(sg2)$name, att$PPID)]
+V(sg2)$race <- att$RaceSimp[match(V(sg2)$name, att$PPID)]
+V(sg2)$identity <- att$Identity[match(V(sg2)$name, att$PPID)]
+V(sg2)$size <- igraph::degree(sg2) *3
+
+sdat2 <- ggnetwork(sg2, layout="fruchtermanreingold", directed=TRUE) # turn graph object into network
+
+ggplot() + 
+  geom_edges(data=sdat2, aes(x=x, y=y, xend=xend, yend=yend), color="grey60", curvature=0.1, size=.15, 
+             arrow = arrow(length = unit(6, "pt"))) +
+  geom_nodes(data=sdat2, aes(x=x, y=y, size=size, color=gender, shape=minority, alpha=.1)) + 
+  geom_nodetext(dat=sdat2, aes(x=x, y=y, size=3, label=vertex.names), color="grey30") +
+  theme_blank() 
+
+scent2 <- cbind(igraph::degree(sg2), igraph::degree(sg2, mode="in"), igraph::degree(sg2, mode="out"),
+                igraph::betweenness(sg2, directed=T), igraph::closeness(sg2, mode="all"),
+                igraph::evcent(sg2)$vector) %>% as.data.frame(.) %>% cbind(PPID=as.numeric(as.character(rownames(.))), .)
+names(scent2) <- c("PPID","deg2","indeg2","outdeg2","btwn2","close2","eigen2")
+
+scent <- inner_join(scent1, scent2, by="PPID") %>% # leaving data for only people who completed both T1 and T2 surveys
+  mutate(gender = att$Gender[match(.$PPID, att$PPID)], race = att$RaceSimp[match(.$PPID, att$PPID)], 
+         minority = att$Minority[match(.$PPID, att$PPID)], identity = att$Identity[match(.$PPID, att$PPID)])
+```
+
+---
+class: inverse, center, middle
+
+## What groups occupy more central positions within a closed network?
+
+### Friend network at the end of the semester
+```{r interactive friend network, fig.height=6, fig.width=8}
+fgi2 <- fg2
+V(fgi2)$size <- igraph::degree(fgi2) / 1.5   # sized by degree centrality, divided by 1.5 for size adjustment
+V(fgi2)$color <- att$Identity[match(V(fgi2)$name, att$PPID)] 
+V(fgi2)$color = gsub("Minority Men", "#F8766D", V(fgi2)$color) # MM = red
+V(fgi2)$color = gsub("Minority Women", "#7CAE00", V(fgi2)$color) # MW = green
+V(fgi2)$color = gsub("White Men", "#00BFC4", V(fgi2)$color) # WM = blue
+V(fgi2)$color = gsub("White Women", "#C77CFF", V(fgi2)$color) # WW = purple
+V(fgi2)$color = ifelse(is.na(V(fgi2)$color), "white", V(fgi2)$color)
+E(fgi2)$color <- "#e6e6e6"
+
+graphjs(fgi2, repulsion = 0.3, curvature = 0.4, bg = "black") 
+``` 
+
+---
+class: inverse, center, middle
+
+### Study network at the end of the semester
+
+```{r interactive study network, fig.height=6, fig.width=8}
+sgi2 <- sg2
+V(sgi2)$size <- igraph::degree(sgi2)  # sized by degree centrality
+V(sgi2)$color <- att$Identity[match(V(sgi2)$name, att$PPID)] 
+V(sgi2)$color = gsub("Minority Men", "#F8766D", V(sgi2)$color) # MM = red
+V(sgi2)$color = gsub("Minority Women", "#7CAE00", V(sgi2)$color) # MW = green
+V(sgi2)$color = gsub("White Men", "#00BFC4", V(sgi2)$color) # WM = blue
+V(sgi2)$color = gsub("White Women", "#C77CFF", V(sgi2)$color) # WW = purple
+V(sgi2)$color = ifelse(is.na(V(sgi2)$color), "white", V(sgi2)$color)
+E(sgi2)$color <- "#e6e6e6"
+
+graphjs(sgi2, repulsion = 0.3, curvature = 0.4, bg = "black")
+```
+
+---
+## What groups occupy more central positions within a closed network?
+
+While the network visualizations provide some information, e.g. the size of the nodes indicating that women seem to be more central than men, simple ggplots that compare the means of different groups do a better job.
+
+So let's look at them!
+
+Let's first look at degree centrality - this is the total number of ties that each individual has, and is often considered as an index of direct influence.
+
+---
+
+## Friend Network
+### Is there any difference in degree centrality by gender?
+```{r ggplot1 for friend degree centrality, fig.height=6, fig.width=8}
+subset(fcent, select=c("PPID","deg1","deg2","gender","minority","identity")) %>%
+  gather(., var, val, -c(PPID, gender, minority, identity), na.rm=FALSE) %>%
+  tidyr::separate(., var, into=c("var", "time"), "(?<=[a-z])(?=[0-9])") %>% 
+  spread(., var, val) %>% mutate(time = as.numeric(.$time)) -> fdeg
+
+ggplot(fdeg %>% filter(!is.na(gender)), aes(x=time, y=deg, group=gender)) + 
+  stat_smooth(method="lm", se=TRUE, alpha=.1, lwd=1.1, aes(color=gender, fill=gender)) +
+  stat_summary(geom="point", fun.y=mean, aes(shape=gender, color=gender), size=3) + 
+  labs(x="Time", y="Friend Network Degree Centrality") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=15), 
+        axis.title.x = element_text(face="bold", size=15), axis.title.y = element_text(face="bold", size=15), 
+        axis.text.x=element_text(color='black', size=15),   
+        axis.text.y=element_text(color='black',size=15), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_x_continuous(breaks=seq(1, 2, 1))
+```
+
+---
+### Is there any difference in degree centrality by minority status?
+```{r ggplot2 for friend degree centrality, fig.height=6, fig.width=8}
+ggplot(fdeg %>% filter(!is.na(minority)), aes(x=time, y=deg, group=minority)) + 
+  stat_smooth(method="lm", se=TRUE, alpha=.1, lwd=1.1, aes(color=minority, fill=minority)) +
+  stat_summary(geom="point", fun.y=mean, aes(shape=minority, color=minority), size=3) + 
+  labs(x="Time", y="Friend Network Degree Centrality") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=15), 
+        axis.title.x = element_text(face="bold", size=15), axis.title.y = element_text(face="bold", size=15), 
+        axis.text.x=element_text(color='black', size=15),   
+        axis.text.y=element_text(color='black',size=15), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_x_continuous(breaks=seq(1, 2, 1))
+```
+
+---
+## Study Network
+### Is there any difference in degree centrality by gender?
+```{r ggplot1 for study degree centrality, fig.height=6, fig.width=8}
+subset(scent, select=c("PPID","deg1","deg2","gender","minority","identity")) %>%
+  gather(., var, val, -c(PPID, gender, minority, identity), na.rm=FALSE) %>%
+  tidyr::separate(., var, into=c("var", "time"), "(?<=[a-z])(?=[0-9])") %>% 
+  spread(., var, val) %>% mutate(time = as.numeric(.$time)) -> sdeg
+
+ggplot(sdeg %>% filter(!is.na(gender)), aes(x=time, y=deg, group=gender)) + 
+  stat_smooth(method="lm", se=TRUE, alpha=.1, lwd=1.1, aes(color=gender, fill=gender)) +
+  stat_summary(geom="point", fun.y=mean, aes(shape=gender, color=gender), size=3) + 
+  labs(x="Time", y="Study Network Degree Centrality") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=15), 
+        axis.title.x = element_text(face="bold", size=15), axis.title.y = element_text(face="bold", size=15), 
+        axis.text.x=element_text(color='black', size=15),   
+        axis.text.y=element_text(color='black',size=15), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_x_continuous(breaks=seq(1, 2, 1))
+```
+
+---
+### Is there any difference in degree centrality by minority status?
+```{r ggplot2 for study degree centrality, fig.height=6, fig.width=8}
+ggplot(sdeg %>% filter(!is.na(minority)), aes(x=time, y=deg, group=minority)) + 
+  stat_smooth(method="lm", se=TRUE, alpha=.1, lwd=1.1, aes(color=minority, fill=minority)) +
+  stat_summary(geom="point", fun.y=mean, aes(shape=minority, color=minority), size=3) + 
+  labs(x="Time", y="Study Network Degree Centrality") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=15), 
+        axis.title.x = element_text(face="bold", size=15), axis.title.y = element_text(face="bold", size=15), 
+        axis.text.x=element_text(color='black', size=15),   
+        axis.text.y=element_text(color='black',size=15), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_x_continuous(breaks=seq(1, 2, 1))
+```
+
+---
+## Okay, women tend to be more central in terms of degree centrality. 
+## What if we use a different measure of network centrality? Do results change?
+
+Betweenness centrality quantifies how often each participant sits on the shortest path between two other individuals in the network, and is often thought of as a measure of the ability to control information flow through the network. 
+
+---
+## Friend Network
+### Is there any difference in betweenness centrality by gender?
+```{r ggplot1 for friend betweenness centrality, fig.height=6, fig.width=8}
+subset(fcent, select=c("PPID","btwn1","btwn2","gender","minority","identity")) %>%
+  gather(., var, val, -c(PPID, gender, minority, identity), na.rm=FALSE) %>%
+  tidyr::separate(., var, into=c("var", "time"), "(?<=[a-z])(?=[0-9])") %>% 
+  spread(., var, val) %>% mutate(time = as.numeric(.$time)) -> fbtwn
+
+ggplot(fbtwn %>% filter(!is.na(gender)), aes(x=time, y=btwn, group=gender)) + 
+  stat_smooth(method="lm", se=TRUE, alpha=.1, lwd=1.1, aes(color=gender, fill=gender)) +
+  stat_summary(geom="point", fun.y=mean, aes(shape=gender, color=gender), size=3) + 
+  labs(x="Time", y="Friend Network Betweenness Centrality") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=15), 
+        axis.title.x = element_text(face="bold", size=15), axis.title.y = element_text(face="bold", size=15), 
+        axis.text.x=element_text(color='black', size=15),   
+        axis.text.y=element_text(color='black',size=15), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_x_continuous(breaks=seq(1, 2, 1))
+```
+
+---
+### Is there any difference in betweenness centrality by minority status?
+```{r ggplot2 for friend betweenness centrality, fig.height=6, fig.width=8}
+ggplot(fbtwn %>% filter(!is.na(minority)), aes(x=time, y=btwn, group=minority)) + 
+  stat_smooth(method="lm", se=TRUE, alpha=.1, lwd=1.1, aes(color=minority, fill=minority)) +
+  stat_summary(geom="point", fun.y=mean, aes(shape=minority, color=minority), size=3) + 
+  labs(x="Time", y="Friend Network Betweenness Centrality") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=15), 
+        axis.title.x = element_text(face="bold", size=15), axis.title.y = element_text(face="bold", size=15), 
+        axis.text.x=element_text(color='black', size=15),   
+        axis.text.y=element_text(color='black',size=15), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_x_continuous(breaks=seq(1, 2, 1))
+```
+
+---
+## Study Network
+### Is there any difference in betweenness centrality by gender?
+```{r ggplot1 for study betweenness centrality, fig.height=6, fig.width=8}
+subset(scent, select=c("PPID","btwn1","btwn2","gender","minority","identity")) %>%
+  gather(., var, val, -c(PPID, gender, minority, identity), na.rm=FALSE) %>%
+  tidyr::separate(., var, into=c("var", "time"), "(?<=[a-z])(?=[0-9])") %>% 
+  spread(., var, val) %>% mutate(time = as.numeric(.$time)) -> sbtwn
+
+ggplot(sbtwn %>% filter(!is.na(gender)), aes(x=time, y=btwn, group=gender)) + 
+  stat_smooth(method="lm", se=TRUE, alpha=.1, lwd=1.1, aes(color=gender, fill=gender)) +
+  stat_summary(geom="point", fun.y=mean, aes(shape=gender, color=gender), size=3) + 
+  labs(x="Time", y="Study Network Betweenness Centrality") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=15), 
+        axis.title.x = element_text(face="bold", size=15), axis.title.y = element_text(face="bold", size=15), 
+        axis.text.x=element_text(color='black', size=15),   
+        axis.text.y=element_text(color='black',size=15), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_x_continuous(breaks=seq(1, 2, 1))
+```
+
+---
+### Is there any difference in betweenness centrality by minority status?
+```{r ggplot2 for study betweenness centrality, fig.height=6, fig.width=8}
+ggplot(sbtwn %>% filter(!is.na(minority)), aes(x=time, y=btwn, group=minority)) + 
+  stat_smooth(method="lm", se=TRUE, alpha=.1, lwd=1.1, aes(color=minority, fill=minority)) +
+  stat_summary(geom="point", fun.y=mean, aes(shape=minority, color=minority), size=3) + 
+  labs(x="Time", y="Study Network Betweenness Centrality") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=15), 
+        axis.title.x = element_text(face="bold", size=15), axis.title.y = element_text(face="bold", size=15), 
+        axis.text.x=element_text(color='black', size=15),   
+        axis.text.y=element_text(color='black',size=15), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + scale_x_continuous(breaks=seq(1, 2, 1))
+```
+
+---
+## Does this have to do with demographic composition of the class?
+```{r plotly demographic composition 1}
+dp <- fcent %>% group_by(gender) %>% summarize(count=n()) %>% 
+  plot_ly(labels=~gender, values=~count) %>% add_pie(hole=.5) %>% 
+  layout(title="Gender Breakdown", showlegend=F, 
+         xaxis=list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+dp
+```
+
+---
+## Does this have to do with demographic composition of the class?
+```{r plotly demographic composition 2}
+dp2 <- fcent %>% group_by(minority) %>% summarize(count=n()) %>% 
+  plot_ly(labels=~minority, values=~count) %>% add_pie(hole=.5) %>% 
+  layout(title="Minority Status Breakdown", showlegend=F, 
+         xaxis=list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+dp2
+```
+---
+
+
+
+## Now we know who are more central in the network!
+## But we want to delve deeper into the network composition. Who are people friends with?
+
+---
+
+##### Who is multicultural?
+
+```{r}
+cul.04.plotly <- cul.04 %>% mutate(`High School Type` = hstype,
+                   `Multiculturalim Score (September)` = multit1,
+                   `Colorblindness Score (September)` = colort1,
+                  `Multiculturalim Score (December)` = multit2,
+                   `Colorblindness Score (December)` = colort2,
+                  `Census Tract Diversity (2010 HHI)` = tract.diversity,
+                  `Study Network Diversity in College (Dec.)` = diversity.st.t2)
+                  
+(p <- plot_ly(cul.04.plotly %>% filter(hstype != "GED"), y = ~ `High School Type`, x = ~ `Multiculturalim Score (December)`, type = "box", color = ~ `High School Type`))
+```
+
+---
+
+
+
+
+##### Who is colorblind?
+
+```{r}
+(p <- plot_ly(cul.04.plotly %>% filter(hstype != "GED"), y = ~ `High School Type`, x = ~  `Colorblindness Score (December)`, type = "box", color = ~ `High School Type`))
+```
+
+
+
+
+
+
+---
+
+
+
+```{r, echo = F, warning = F, message = F, out.height = "100%", out.width = "100%"}
+knitr::include_graphics("https://github.com/srhoads/projects/raw/master/data%20visualization%20-%20a%20project/HHI.png")
+```
+
+---
+
+
+##### At a school that promotes diversity, what does diversity mean to students?
+
+###### How do attitudes toward diversity affect students' real-world relationships?
+
+```{r, message = F, warning = F, echo = F}
+ggplot(cul.04 %>% filter(!is.na(minority.status))) + geom_jitter(aes(multit1, diversity.st.t2, color = as.factor(minority.status)), size = 3) + geom_smooth(aes(multit1, diversity.st.t2), method = "lm", color = "dark blue") + xlab("Multiculturalism (Sept.)") + ylab("Study-partner \nnetwork diversity (Dec.)") + theme_minimal() + labs(color='Racial/ethnic minority status') + theme(legend.position = "none", title = element_text(size = 20)) + scale_color_manual(values = c("dark violet", "dark green"))
+```  
+---
+
+```{r, message = F, warning = F, echo = F}
+ggplot(cul.04 %>% filter(!is.na(minority.status))) + geom_jitter(aes(colort1, diversity.st.t2, color = as.factor(minority.status)), size = 3) + geom_smooth(aes(colort1, diversity.st.t2), method = "lm", color = "maroon") + xlab("Colorblindness (Sept.)") + ylab("Study-partner \nnetwork diversity (Dec.)") + theme_minimal() + labs(color='Racial/ethnic minority status') + theme(legend.position = "none", title = element_text(size = 20)) + scale_color_manual(values = c("dark violet", "dark green"))
+```
+
+---
+##### But what are the developmental antecedents to these attitudes?
+
+##### Do we know what stimulates multicultural attitudes?
+
+```{r, message = F, warning = F, echo = F}
+ggplot(cul.04 %>% filter(!is.na(minority.status))) + geom_jitter(aes(tract.diversity, multit1, color = as.factor(minority.status)), size = 3) + geom_smooth(aes(tract.diversity, multit1), method = "lm", color = "dark blue") + xlab("Census tract diversity (HHI 2010)") + ylab("Multiculturalism in college (2016)") + theme_minimal() + labs(color='Racial/ethnic minority status') + theme(legend.position = "none", title = element_text(size = 20)) + scale_color_manual(values = c("dark violet", "dark green"))
+```
+---
+
+```{r, message = F, warning = F, echo = F}
+ggplot(cul.04 %>% filter(!is.na(minority.status))) + geom_jitter(aes(tract.diversity, colort1, color = as.factor(minority.status)), size = 3) + geom_smooth(aes(tract.diversity, colort1), method = "lm", color = "maroon") + xlab("Census tract diversity (HHI 2010)") + ylab("Colorblindness in college (2016)") + theme_minimal() + labs(color='Racial/ethnic minority status') + theme(legend.position = "none", title = element_text(size = 20), text = element_text(size = 20)) + scale_color_manual(values = c("dark violet", "dark green"))
+```
+
+
+
+---
+
+
+##### At a school that promotes diversity, what does diversity mean to students?
+
+
+###### How do attitudes toward diversity affect students' real-world relationships?
+
+```{r, message = F, warning = F, echo = F}
+ggplot(cul.04 %>% filter(!is.na(minority.status))) + geom_jitter(aes(multit1, diversity.st.t2, color = as.factor(minority.status)), size = 3) + geom_smooth(aes(multit1, diversity.st.t2), method = "lm", color = "dark blue") + xlab("Multiculturalism (Sept.)") + ylab("Study-partner \nnetwork diversity (Dec.)") + theme_minimal() + labs(color='Racial/ethnic minority status') + theme(legend.position = "none", title = element_text(size = 20)) + scale_color_manual(values = c("dark violet", "dark green"))
+```  
+
+---
+
+```{r, message = F, warning = F, echo = F}
+ggplot(cul.04 %>% filter(!is.na(minority.status))) + geom_jitter(aes(colort1, diversity.st.t2, color = as.factor(minority.status)), size = 3) + geom_smooth(aes(colort1, diversity.st.t2), method = "lm", color = "maroon") + xlab("Colorblindness (Sept.)") + ylab("Study-partner \nnetwork diversity (Dec.)") + theme_minimal() + labs(color='Racial/ethnic minority status') + theme(legend.position = "none", title = element_text(size = 20)) + scale_color_manual(values = c("dark violet", "dark green"))
+```
+
+
+---
+
+
+
+
+
+##### But what are the developmental antecedents to these attitudes?
+
+##### Do we know what stimulates multicultural attitudes?
+
+
+```{r, message = F, warning = F, echo = F}
+ggplot(cul.04 %>% filter(!is.na(minority.status))) + geom_jitter(aes(tract.diversity, multit1, color = as.factor(minority.status)), size = 3) + geom_smooth(aes(tract.diversity, multit1), method = "lm", color = "dark blue") + xlab("Census tract diversity (HHI 2010)") + ylab("Multiculturalism in college (2016)") + theme_minimal() + labs(color='Racial/ethnic minority status') + theme(legend.position = "none", title = element_text(size = 20)) + scale_color_manual(values = c("dark violet", "dark green"))
+```
+
+---
+
+```{r, message = F, warning = F, echo = F}
+ggplot(cul.04 %>% filter(!is.na(minority.status))) + geom_jitter(aes(tract.diversity, colort1, color = as.factor(minority.status)), size = 3) + geom_smooth(aes(tract.diversity, colort1), method = "lm", color = "maroon") + xlab("Census tract diversity (HHI 2010)") + ylab("Colorblindness in college (2016)") + theme_minimal() + labs(color='Racial/ethnic minority status') + theme(legend.position = "none", title = element_text(size = 20), text = element_text(size = 20)) + scale_color_manual(values = c("dark violet", "dark green"))
+```
+
+
+
+---
+
+Here, you can have a look at this plot in a more nuanced (and interactive) way!
+
+```{r, echo = F, warning = F, message = F}
+cul.04.plotly <- cul.04 %>% mutate(`High School Type` = hstype,
+                   `Multiculturalim Score (Sept.)` = multit1,
+                   `Colorblindness Score (Sept.)` = colort1,
+                  `Multiculturalim Score (Dec.)` = multit2,
+                   `Colorblindness Score (Dec.)` = colort2,
+                  `Census Tract Diversity (2010 HHI)` = tract.diversity,
+                  `Study Network Diversity in College (Sept.)` = diversity.st.t1,
+                  `White/Minority Status (White = 1; minority = 0)` = as.factor(white),
+                  `Study Network Degree in College (Sept.)` = deg.t1.st)
+                  
+fit <- lm(`Colorblindness Score (Sept.)` ~ `Census Tract Diversity (2010 HHI)`, 
+          data = cul.04.plotly %>% filter(!is.na(colort1), !is.na(`Census Tract Diversity (2010 HHI)`)))
+
+cul.04.plotly %>% filter(!is.na(`Colorblindness Score (Sept.)`), !is.na(`Census Tract Diversity (2010 HHI)`)) %>%
+  plot_ly(x = ~ `Census Tract Diversity (2010 HHI)`) %>%
+         add_markers(y = ~ `Colorblindness Score (Sept.)`, 
+                     size = ~ `Study Network Degree in College (Sept.)`, 
+                     color = ~ `White/Minority Status (White = 1; minority = 0)`) %>% 
+       add_lines(x = ~ `Census Tract Diversity (2010 HHI)`, y = fitted(fit)) %>%
+  layout(title = "Higher census tract diversity predicts higher\n 
+         colorblindness scores in college?")
+```
+
+
+
+---
+class: inverse, center, middle
+
+Thank you and happy summer!!!
